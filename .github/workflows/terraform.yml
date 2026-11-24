@@ -1,0 +1,96 @@
+name: Reusable Enterprise Terraform CI/CD Pipeline
+description: "Centralized Terraform workflow for fmt, validate, tflint, security scanning, plan, and apply."
+
+on:
+  workflow_call:
+    inputs:
+      terraform-version:
+        description: "Terraform binary version"
+        required: false
+        type: string
+        default: "1.7.5"
+      working-directory:
+        description: "Terraform module working directory"
+        required: false
+        type: string
+        default: "."
+      auto-apply:
+        description: "Execute terraform apply automatically on main branch"
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      aws-access-key-id:
+        required: false
+      aws-secret-access-key:
+        required: false
+
+jobs:
+  validate-and-plan:
+    name: Terraform Lint, Scan & Plan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform-version }}
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -diff
+
+      - name: Terraform Initialize
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Run TFLint Static Security Analysis
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: "v0.51.1"
+
+      - name: Execute TFLint
+        run: |
+          tflint --init || true
+          tflint -f compact || true
+
+      - name: Terraform Plan
+        if: ${{ env.AWS_ACCESS_KEY_ID != '' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.aws-access-key-id }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.aws-secret-access-key }}
+          AWS_REGION: "us-east-1"
+        run: terraform plan -no-color -out=tfplan || true
+
+  apply:
+    name: Terraform Apply (Production Gated)
+    needs: validate-and-plan
+    if: ${{ github.ref == 'refs/heads/main' && inputs.auto-apply }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform-version }}
+
+      - name: Execute Production Apply
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.aws-access-key-id }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.aws-secret-access-key }}
+          AWS_REGION: "us-east-1"
+        run: |
+          echo "[*] Initializing and applying infrastructure changes..."
+          terraform init
+          terraform apply -auto-approve

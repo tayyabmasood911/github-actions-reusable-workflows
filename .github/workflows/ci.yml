@@ -1,27 +1,19 @@
-name: Production CI/CD Pipeline
+name: Workflows Schema & Integrity Audit
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
-  validate-and-test:
+  validate-workflows:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Source Code
-        uses: actions/checkout@v4
-
-      - name: Set up Environment
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-
-      - name: Verify Configurations & Syntax
+      - name: Validate YAML Syntax & Workflow Schemas
         run: |
-          echo "Validating syntax, schemas, and configurations..."
-          python -m unittest discover -s tests -p "test_*.py" || true
-
-      - name: Security & Vulnerability Audit
-        run: |
-          echo "Scanning configuration files for security vulnerabilities..."
+          python3 scripts/validate_workflows.py
+          python3 -m unittest discover -s tests -p "test_*.py"

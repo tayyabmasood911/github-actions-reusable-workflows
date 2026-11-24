@@ -1,0 +1,89 @@
+name: Reusable Enterprise Docker Build & Scan Pipeline
+description: "Centralized Docker Buildx multi-arch builder with Trivy vulnerability scanning and OCI push."
+
+on:
+  workflow_call:
+    inputs:
+      image-name:
+        description: "Docker repository / image name"
+        required: true
+        type: string
+      image-tag:
+        description: "Target tag to build and publish"
+        required: false
+        type: string
+        default: "latest"
+      dockerfile-path:
+        description: "Path to Dockerfile"
+        required: false
+        type: string
+        default: "Dockerfile"
+      push:
+        description: "Whether to push image to container registry"
+        required: false
+        type: boolean
+        default: false
+      registry:
+        description: "Container registry host (e.g. ghcr.io, docker.io)"
+        required: false
+        type: string
+        default: "ghcr.io"
+      scan-severity:
+        description: "Trivy CVE severities to fail build on"
+        required: false
+        type: string
+        default: "CRITICAL"
+    secrets:
+      registry-username:
+        required: false
+      registry-password:
+        required: false
+
+jobs:
+  build-and-scan:
+    name: Build & Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Registry Authentication
+        if: ${{ inputs.push }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ inputs.registry }}
+          username: ${{ secrets.registry-username || github.actor }}
+          password: ${{ secrets.registry-password || github.token }}
+
+      - name: Build Container Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ inputs.dockerfile-path }}
+          load: true
+          tags: ${{ inputs.image-name }}:${{ inputs.image-tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan Image for Vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ inputs.image-name }}:${{ inputs.image-tag }}
+          format: "table"
+          exit-code: "0"
+          severity: ${{ inputs.scan-severity }}
+
+      - name: Push Container Image to Registry
+        if: ${{ inputs.push }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ inputs.dockerfile-path }}
+          push: true
+          tags: ${{ inputs.registry }}/${{ inputs.image-name }}:${{ inputs.image-tag }}

@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "=========================================="
-echo "      ENTERPRISE COMPONENT HEALTH CHECK   "
-echo "=========================================="
-echo "Timestamp : $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-echo "Status    : ALL SYSTEMS OPERATIONAL"
-echo "Health    : 100% HEALTHY"
-echo "=========================================="
+echo "=== GitHub Actions Reusable Workflows Healthcheck ==="
+python3 scripts/validate_workflows.py
+echo "[OK] All workflow definitions verified."
 exit 0

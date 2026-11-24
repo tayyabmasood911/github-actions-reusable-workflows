@@ -1,0 +1,41 @@
+name: Enterprise Reusable Pipeline Demonstration
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  call-lint:
+    name: Invoke Reusable Lint Workflow
+    uses: ./.github/workflows/lint.yml
+    with:
+      language: "multi"
+      node-version: "20.x"
+      python-version: "3.12"
+
+  call-test:
+    name: Invoke Reusable Test Workflow
+    needs: call-lint
+    uses: ./.github/workflows/test.yml
+    with:
+      language: "python"
+      coverage-threshold: 80
+
+  call-docker:
+    name: Invoke Reusable Docker Workflow
+    needs: call-test
+    uses: ./.github/workflows/docker.yml
+    with:
+      image-name: "enterprise-app"
+      image-tag: "latest"
+      push: false
+      scan-severity: "CRITICAL"
+
+  call-terraform:
+    name: Invoke Reusable Terraform Workflow
+    needs: call-docker
+    uses: ./.github/workflows/terraform.yml
+    with:
+      terraform-version: "1.7.5"
+      auto-apply: false

@@ -1,128 +1,111 @@
-# :rocket: Github Actions Reusable Workflows
+# Centralized Enterprise Reusable GitHub Actions Workflows
 
-<div align="center">
+[![CI Validation](https://github.com/tayyabmasood911/github-actions-reusable-workflows/actions/workflows/ci.yml/badge.svg)](https://github.com/tayyabmasood911/github-actions-reusable-workflows/actions)
+[![Security Policy](https://img.shields.io/badge/Security-Policy-blue.svg)](SECURITY.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-workflow__call-blueviolet.svg)](https://docs.github.com/en/actions/sharing-automations/reusing-workflows)
 
-[![Status](https://img.shields.io/badge/status-production--ready-brightgreen?style=for-the-badge&logo=git)]()
-[![Domain](https://img.shields.io/badge/domain-DevSecOps--and--CI/CD-blueviolet?style=for-the-badge)]()
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge&logo=github)](https://github.com/T9113/github-actions-reusable-workflows/pulls)
-[![Security Hardened](https://img.shields.io/badge/security-hardened-red?style=for-the-badge&logo=shield)]()
-
-</div>
+A centralized repository of enterprise-grade reusable GitHub Actions CI/CD workflows implementing DRY principles across code quality, testing, multi-architecture Docker container building, and Terraform infrastructure management.
 
 ---
 
-## :memo: Executive Summary
+## Architectural Blueprint
 
-**Github Actions Reusable Workflows** is an enterprise-grade production engineering implementation designed for mission-critical deployments. Built to meet stringent requirements for **99.99% availability**, zero-trust security boundaries, automated resilience, and seamless CI/CD delivery.
+Consumer repositories invoke centralized, parameter-driven workflows via GitHub's `workflow_call` mechanism, inheriting standardized linting, security scanning, multi-architecture builds, and infrastructure automation.
 
-Key operational outcomes:
-- **Resilience:** Multi-zone high availability with automated fault detection and recovery.
-- **Scalability:** Elastic horizontal scaling responsive to real-time workload demand.
-- **Security:** Strict adherence to least-privilege RBAC, encrypted communications, and zero committed secrets.
-- **Maintainability:** Modular, declarative configuration aligned with cloud-native industry standards.
+![Reusable Workflows Architecture](docs/architecture.svg)
 
 ---
 
-## :building_construction: System Architecture
+## Workflow Catalog & Reference
 
-```text
-+-------------------------------------------------------------------------------+
-|                       Github Actions Reusable Workflows Architecture Blueprint                    |
-|                                                                               |
-|   [Client Ingress] ===> [API Gateway / Traffic Router (TLS 1.3 / mTLS)]       |
-|                                     |                                         |
-|                                     v                                         |
-|                         [Core Workload Cluster]                               |
-|                         (Multi-Replica / Multi-AZ)                            |
-|                                     |                                         |
-|                 +-------------------+-------------------+                     |
-|                 |                                       |                     |
-|                 v                                       v                     |
-|     [Persistence & Storage Layer]           [Observability & Telemetry Engine]|
-|      (Encrypted at Rest / KMS)              (Prometheus / OTLP / OpenSearch)  |
-+-------------------------------------------------------------------------------+
+| Workflow Path | Trigger | Primary Purpose | Key Technologies |
+|:---|:---:|:---|:---|
+| [`.github/workflows/lint.yml`](.github/workflows/lint.yml) | `workflow_call` | Polyglot code style and static syntax analysis | ESLint, Prettier, Flake8, Ruff, Go Vet |
+| [`.github/workflows/test.yml`](.github/workflows/test.yml) | `workflow_call` | Automated test suite execution & coverage reporting | Jest, Pytest, Go Test, Coverage.py |
+| [`.github/workflows/docker.yml`](.github/workflows/docker.yml) | `workflow_call` | Multi-arch Docker Buildx, Trivy scan, OCI registry push | Buildx, QEMU, Trivy, GHCR/ECR |
+| [`.github/workflows/terraform.yml`](.github/workflows/terraform.yml) | `workflow_call` | Format check, TFLint security analysis, plan & apply | Terraform CLI, TFLint, AWS Provider |
+
+---
+
+## Consumer Usage Examples
+
+### 1. Ingesting Reusable Lint & Test Workflows
+In any calling repository, create `.github/workflows/ci.yml`:
+
+```yaml
+name: Application CI
+on: [push, pull_request]
+
+jobs:
+  lint:
+    name: Code Linting
+    uses: tayyabmasood911/github-actions-reusable-workflows/.github/workflows/lint.yml@main
+    with:
+      language: "node"
+      node-version: "20.x"
+
+  test:
+    name: Unit Testing
+    needs: lint
+    uses: tayyabmasood911/github-actions-reusable-workflows/.github/workflows/test.yml@main
+    with:
+      language: "node"
+      coverage-threshold: 80
+```
+
+### 2. Multi-Arch Docker Build & Security Scan
+```yaml
+  build-container:
+    needs: test
+    uses: tayyabmasood911/github-actions-reusable-workflows/.github/workflows/docker.yml@main
+    with:
+      image-name: "my-org/my-service"
+      image-tag: ${{ github.sha }}
+      push: true
+      registry: "ghcr.io"
+      scan-severity: "CRITICAL"
+    secrets:
+      registry-username: ${{ github.actor }}
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
+```
+
+### 3. Terraform Cloud Infrastructure Pipeline
+```yaml
+  terraform-ci:
+    uses: tayyabmasood911/github-actions-reusable-workflows/.github/workflows/terraform.yml@main
+    with:
+      terraform-version: "1.7.5"
+      working-directory: "terraform/environments/prod"
+      auto-apply: false
+    secrets:
+      aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 ```
 
 ---
 
-## :sparkles: Key Enterprise Capabilities
+## Local Verification & Testing
 
-- :zap: **High Availability & Fault Tolerance:** Eliminates single points of failure via multi-node redundancy and health check probes.
-- :shield: **Zero-Trust Security Posture:** Enforces non-root runtime environments, ephemeral credentials, and automated vulnerability scanning.
-- :chart_with_upwards_trend: **Elastic Autoscaling:** Dynamic resource provisioning based on custom throughput, memory pressure, and queue depth.
-- :mag: **Full-Stack Observability:** Standardized structured telemetry, metrics instrumentation, and distributed request tracing.
-- :package: **GitOps & CI/CD Automation:** Infrastructure and configuration managed declaratively with automated testing and continuous deployment.
-
----
-
-## :file_folder: Repository Directory Structure
-
-```text
-.
-|-- config/              # Declarative configuration and environment definitions
-|-- src/                 # Production source code and manifests
-|-- scripts/             # Operational automation, setup, and maintenance scripts
-|-- tests/               # Comprehensive validation and unit test suites
-|-- LICENSE              # MIT Open Source License
-`-- README.md            # Enterprise architectural documentation
-```
-
----
-
-## :zap: Quick Start & Deployment
-
-### Prerequisites
-- Git `>= 2.40`
-- Docker Engine `>= 24.0` / Cloud CLI (AWS / GCP / Azure / Kubernetes)
-
-### Deployment Steps
 ```bash
-# 1. Clone the repository
-git clone https://github.com/T9113/github-actions-reusable-workflows.git
-cd github-actions-reusable-workflows
+# Validate workflow YAML schemas and workflow_call trigger configurations
+python3 scripts/validate_workflows.py
 
-# 2. Inspect and configure environment parameters
-cp config/example.env config/.env
+# Execute Python unit test suite
+python3 -m unittest discover -s tests -p "test_*.py"
 
-# 3. Validate configurations and syntax
-# Run linters, dry-run validations, or unit test suites
-
-# 4. Deploy workloads / infrastructure
-# Execute deployment manifests or container runtime
+# Run healthcheck
+bash scripts/healthcheck.sh
 ```
 
 ---
 
-## :gear: Configuration Reference
+## Security Governance & Disclosure
 
-| Parameter | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `ENVIRONMENT` | string | `production` | Deployment environment target (`staging`, `production`) |
-| `LOG_LEVEL` | string | `info` | Structured logging verbosity (`debug`, `info`, `warn`, `error`) |
-| `METRICS_ENABLED` | boolean | `true` | Enables real-time Prometheus / OpenTelemetry telemetry export |
-| `TLS_MIN_VERSION` | string | `TLSv1.3` | Minimum allowable TLS protocol version for network traffic |
+For security disclosures or pipeline policy recommendations, review our [Responsible Disclosure Policy](SECURITY.md) or contact **Tayyab Masood** at [tayyabmasood911@gmail.com](mailto:tayyabmasood911@gmail.com).
 
 ---
 
-## :lock: Security, Compliance & Governance
+## License
 
-1. **Least-Privilege Execution:** Services run under restricted service accounts with zero root permissions.
-2. **Encrypted Data In-Flight & At-Rest:** AES-256 / KMS envelope encryption for persistent state and TLS 1.3 for network transport.
-3. **Automated Supply Chain Security:** All dependencies and container images verified against CVE databases using Trivy and Semgrep.
-4. **Zero-Secret Guarantee:** No hardcoded tokens, passwords, or private keys exist in this codebase.
-
----
-
-## :bust_in_silhouette: Author & Maintainer
-
-**Tayyab Masood**  
-Cloud Solutions Architect & Senior DevOps Engineer  
-- :globe_with_meridians: **GitHub:** [@T9113](https://github.com/T9113)  
-- :scroll: **Certification:** AWS Certified Solutions Architect - Associate  
-
----
-
-## :page_facing_up: License
-
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+Licensed under the MIT License. See [LICENSE](LICENSE) for details.
